@@ -8,9 +8,10 @@ function Game(){
         {name: "Deepak", score:0},
         {name: "Muskaan", score:0},
     ];
-    const [ drawerIndex,setDrawerIndex] = useState(1);
-    const word = "pencil";
+    const [ drawerIndex,setDrawerIndex] = useState(0);
     const currentDrawer = players[drawerIndex].name;
+    const currentUser = "You";
+    const isCurrentDrawer = currentUser === currentDrawer;
     const [guess, setGuess] = useState("");
     const [messages, setMessages] = useState([
         {user : "Muskaan", text : "Is is a car?"}
@@ -37,6 +38,35 @@ function Game(){
         const context = canvas.getContext("2d");
         context.clearRect(0, 0, canvas.width, canvas.height);
     }, [isRoundOver]);
+    //words
+    const [wordOptions, setWordOptions] = useState([]);
+    const[isLoadingWords, setIsLoadingWords] = useState(false);
+    const [word, setWord] = useState(null);
+    const hiddenWord = word
+        ? Array.from(word)
+            .map((character) => (character === " " ? " " : "_"))
+            .join(" ")
+        : "";
+    async function loadWordOptions(){
+        setIsLoadingWords(true);
+        try{
+            const response = await fetch(
+                "https://random-word-api.herokuapp.com/word?number=3&diff=1"
+            )
+            if(!response.ok){
+                throw new Error("Could not load words");
+            }
+            const choices = await response.json();
+            setWordOptions(choices);
+        } catch(error){
+            console.error(error);
+        }finally{
+            setIsLoadingWords(false);
+        }
+    }
+    useEffect(()=>{
+        loadWordOptions();
+    },[]);
     return(
         <div>
             <div>
@@ -44,7 +74,7 @@ function Game(){
                 Round {round}/3
                 </h1>
                 <h1>
-                    Word:{isRoundOver ? word : "_ _ _ _ _ _"}
+                    Word: {isCurrentDrawer || isRoundOver ? word : hiddenWord}
                 </h1>
                 {isRoundOver && (
                     <p>Time's up! The word was {word}.</p>
@@ -56,9 +86,20 @@ function Game(){
                 )}
                 <h1>Time:{minutes}:{seconds}</h1>
             </div>
-            <p>
+            <div>
+                <p>
                 {currentDrawer} is drawing;
-            </p>
+                </p>
+                {isCurrentDrawer && !word && !isRoundOver && (
+                 <div>
+                    <h2>{currentDrawer}, choose a word:</h2>
+                    {isLoadingWords && <p>Loading Words</p>}
+                    {wordOptions.map((option)=>(
+                        <button type="button" key={option} onClick={()=>setWord(option)}>{option}</button>
+                    ))}
+                 </div>
+                )}
+            </div>
             <div className="canvas">
                   <div className="player-panel">
                     <h2>Players</h2>
@@ -153,6 +194,8 @@ function nextRound(){
     setSecondsLeft(80);
     setMessages([]);
     setGuess("");
+    setWord(null);
+    loadWordOptions();
     clearCanvas();
 }
 }
